@@ -2,7 +2,6 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <!-- 改动1：加强viewport，禁止缩放和双击放大 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
     <title>快捷货币换算找零工具</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -58,18 +57,22 @@
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
+            .paid-input {
+                border: 2px solid transparent !important;
+                transition: border-color 0.2s ease, background-color 0.2s ease;
+            }
+            .paid-input.active {
+                border-color: #3b82f6 !important;
+                background-color: #f0f9ff !important;
+            }
         }
-        /* 改动2：全局禁止双击缩放，保留滚动和点击 */
-        * {
-            touch-action: manipulation;
-        }
+        * { touch-action: manipulation; }
         body { margin: 0; padding: 0; background: #f3f4f6; }
         .main-container { padding: 12px 0; max-width: 100%; margin: 0 auto; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     </style>
 </head>
 <body>
-    <!-- 以下所有内容完全不变 -->
     <div class="main-container bg-white shadow-lg">
         <h1 class="text-2xl font-bold text-center py-3 text-gray-800 border-b">快捷货币换算找零工具</h1>
         <table>
@@ -117,10 +120,10 @@
                 </tr>
                 <tr>
                     <td class="border-gray-300 font-bold y-padding-cell">实付</td>
-                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedUSD" class="input-cell w-full text-center" value="" placeholder="0" readonly></td>
-                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedTHB" class="input-cell w-full text-center" value="" placeholder="0" readonly></td>
-                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedKHR" class="input-cell w-full text-center" value="" placeholder="0" readonly></td>
-                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedCNY" class="input-cell w-full text-center" value="" placeholder="0" readonly></td>
+                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedUSD" class="input-cell paid-input w-full text-center" value="" placeholder="0" readonly></td>
+                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedTHB" class="input-cell paid-input w-full text-center" value="" placeholder="0" readonly></td>
+                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedKHR" class="input-cell paid-input w-full text-center" value="" placeholder="0" readonly></td>
+                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedCNY" class="input-cell paid-input w-full text-center" value="" placeholder="0" readonly></td>
                 </tr>
             </tbody>
         </table>
@@ -160,7 +163,6 @@
     </div>
 
     <script>
-        // 所有JS逻辑完全不变
         let activeInput = null;
         const currencies = ['USD', 'THB', 'KHR', 'CNY'];
         let rawChange = {};
@@ -285,7 +287,9 @@
             }
         });
 
-        itemPrice.addEventListener('focus', () => {
+        // 阻止商品价格框弹系统键盘
+        itemPrice.addEventListener('focus', (e) => {
+            e.preventDefault();
             activeInput = itemPrice;
             if (justBackFromBlur) {
                 setTimeout(() => setCursorToEnd(itemPrice), 0);
@@ -477,12 +481,16 @@
             calculateAll();
         });
 
+        // 实付输入框高亮逻辑
         Object.values(providedInputs).forEach(input => {
             input.addEventListener('click', () => {
+                Object.values(providedInputs).forEach(i => i.classList.remove('active'));
+                input.classList.add('active');
                 activeInput = input;
                 removeThousandSeparator(input);
             });
             input.addEventListener('blur', () => {
+                input.classList.remove('active');
                 addThousandSeparatorAndAdjustFont(input);
             });
         });
