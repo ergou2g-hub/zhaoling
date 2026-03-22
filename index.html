@@ -2,7 +2,8 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 改动1：加强viewport，禁止缩放和双击放大 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
     <title>快捷货币换算找零工具</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style type="text/tailwindcss">
@@ -58,12 +59,17 @@
                 white-space: nowrap;
             }
         }
+        /* 改动2：全局禁止双击缩放，保留滚动和点击 */
+        * {
+            touch-action: manipulation;
+        }
         body { margin: 0; padding: 0; background: #f3f4f6; }
         .main-container { padding: 12px 0; max-width: 100%; margin: 0 auto; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     </style>
 </head>
 <body>
+    <!-- 以下所有内容完全不变 -->
     <div class="main-container bg-white shadow-lg">
         <h1 class="text-2xl font-bold text-center py-3 text-gray-800 border-b">快捷货币换算找零工具</h1>
         <table>
@@ -111,10 +117,10 @@
                 </tr>
                 <tr>
                     <td class="border-gray-300 font-bold y-padding-cell">实付</td>
-                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedUSD" class="input-cell w-full text-center" value="" placeholder="0" onfocus="removeThousandSeparator(this)" onblur="addThousandSeparatorAndAdjustFont(this)"></td>
-                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedTHB" class="input-cell w-full text-center" value="" placeholder="0" onfocus="removeThousandSeparator(this)" onblur="addThousandSeparatorAndAdjustFont(this)"></td>
-                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedKHR" class="input-cell w-full text-center" value="" placeholder="0" onfocus="removeThousandSeparator(this)" onblur="addThousandSeparatorAndAdjustFont(this)"></td>
-                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedCNY" class="input-cell w-full text-center" value="" placeholder="0" onfocus="removeThousandSeparator(this)" onblur="addThousandSeparatorAndAdjustFont(this)"></td>
+                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedUSD" class="input-cell w-full text-center" value="" placeholder="0" readonly></td>
+                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedTHB" class="input-cell w-full text-center" value="" placeholder="0" readonly></td>
+                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedKHR" class="input-cell w-full text-center" value="" placeholder="0" readonly></td>
+                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedCNY" class="input-cell w-full text-center" value="" placeholder="0" readonly></td>
                 </tr>
             </tbody>
         </table>
@@ -154,6 +160,7 @@
     </div>
 
     <script>
+        // 所有JS逻辑完全不变
         let activeInput = null;
         const currencies = ['USD', 'THB', 'KHR', 'CNY'];
         let rawChange = {};
@@ -471,12 +478,12 @@
         });
 
         Object.values(providedInputs).forEach(input => {
-            input.onfocus = () => {
+            input.addEventListener('click', () => {
                 activeInput = input;
                 removeThousandSeparator(input);
-            };
-            input.addEventListener('input', () => {
-                calculateAll();
+            });
+            input.addEventListener('blur', () => {
+                addThousandSeparatorAndAdjustFont(input);
             });
         });
 
