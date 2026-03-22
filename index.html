@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -51,14 +52,12 @@
             .separator { @apply text-green-600; }
             .currency-active { @apply text-purple-700 font-bold; }
             .clearance-highlight { @apply text-green-600 font-semibold; }
-            /* 新增：让输入框在超长时更友好 */
             .overflow-hidden-text {
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
         }
-        /* 全局去边距 + 铺满 */
         body { margin: 0; padding: 0; background: #f3f4f6; }
         .main-container { padding: 12px 0; max-width: 100%; margin: 0 auto; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
@@ -67,10 +66,10 @@
 <body>
     <div class="main-container bg-white shadow-lg">
         <h1 class="text-2xl font-bold text-center py-3 text-gray-800 border-b">快捷货币换算找零工具</h1>
-        <table class="w-full">
+        <table>
             <tbody>
                 <tr>
-                    <td class="border-gray-300 font-bold w-[5.5em] y-padding-cell text-center">计价货币</td>
+                    <td class="border-gray-300 font-bold w-[5.5em] y-padding-cell">计价货币</td>
                     <td class="border-gray-300 y-padding-cell" colspan="4">
                         <select id="baseCurrency" class="w-full h-full border-none outline-none text-lg text-center bg-transparent" onchange="updateActiveCurrency()">
                             <option value="USD" selected>美金 (USD)</option>
@@ -81,7 +80,7 @@
                     </td>
                 </tr>
                 <tr>
-                    <td id="priceLabel" class="border-gray-300 font-bold add-btn y-padding-cell text-center">
+                    <td id="priceLabel" class="border-gray-300 font-bold add-btn y-padding-cell">
                         <div>商品价格</div>
                         <div class="text-sm text-transparent">(共0件)</div>
                     </td>
@@ -90,28 +89,28 @@
                     </td>
                 </tr>
                 <tr>
-                    <td class="border-gray-300 font-bold y-padding-cell text-center">币种</td>
+                    <td class="border-gray-300 font-bold y-padding-cell">币种</td>
                     <td id="currency-USD" class="border-gray-300 font-bold y-padding-cell currency-active">美金</td>
                     <td id="currency-THB" class="border-gray-300 font-bold y-padding-cell">泰铢</td>
                     <td id="currency-KHR" class="border-gray-300 font-bold y-padding-cell">柬币</td>
                     <td id="currency-CNY" class="border-gray-300 font-bold y-padding-cell">华币</td>
                 </tr>
                 <tr>
-                    <td class="border-gray-300 font-bold y-padding-cell text-center">汇率</td>
+                    <td class="border-gray-300 font-bold y-padding-cell">汇率</td>
                     <td class="border-gray-300 y-padding-cell" ondblclick="makeEditable(this, 'rate', 'USD')" id="rateUSD">1</td>
                     <td class="border-gray-300 y-padding-cell" ondblclick="makeEditable(this, 'rate', 'THB')" id="rateTHB">30</td>
                     <td class="border-gray-300 y-padding-cell" ondblclick="makeEditable(this, 'rate', 'KHR')" id="rateKHR">4000</td>
                     <td class="border-gray-300 y-padding-cell" ondblclick="makeEditable(this, 'rate', 'CNY')" id="rateCNY">6.95</td>
                 </tr>
                 <tr>
-                    <td id="changeLabel" class="border-gray-300 font-bold text-green-600 y-padding-cell text-center">金额结清</td>
+                    <td id="changeLabel" class="border-gray-300 font-bold text-green-600 y-padding-cell">金额结清</td>
                     <td class="border-gray-300 y-padding-cell text-center overflow-hidden-text" id="changeUSD">0</td>
                     <td class="border-gray-300 y-padding-cell text-center overflow-hidden-text" id="changeTHB">0</td>
                     <td class="border-gray-300 y-padding-cell text-center overflow-hidden-text" id="changeKHR">0</td>
                     <td class="border-gray-300 y-padding-cell text-center overflow-hidden-text" id="changeCNY">0</td>
                 </tr>
                 <tr>
-                    <td class="border-gray-300 font-bold y-padding-cell text-center">实付</td>
+                    <td class="border-gray-300 font-bold y-padding-cell">实付</td>
                     <td class="border-gray-300 y-padding-cell"><input type="text" id="providedUSD" class="input-cell w-full text-center" value="" placeholder="0" onfocus="removeThousandSeparator(this)" onblur="addThousandSeparatorAndAdjustFont(this)"></td>
                     <td class="border-gray-300 y-padding-cell"><input type="text" id="providedTHB" class="input-cell w-full text-center" value="" placeholder="0" onfocus="removeThousandSeparator(this)" onblur="addThousandSeparatorAndAdjustFont(this)"></td>
                     <td class="border-gray-300 y-padding-cell"><input type="text" id="providedKHR" class="input-cell w-full text-center" value="" placeholder="0" onfocus="removeThousandSeparator(this)" onblur="addThousandSeparatorAndAdjustFont(this)"></td>
@@ -120,7 +119,6 @@
             </tbody>
         </table>
 
-        <!-- 键盘区：五列完全等宽 -->
         <table class="w-full mt-2 border-collapse">
             <tbody>
                 <tr>
@@ -156,9 +154,398 @@
     </div>
 
     <script>
-        // JavaScript 部分保持不变（与你上一个版本一致），这里省略以节省空间
-        // 如果需要完整 JS，请告诉我，我再贴上来
-        // 注意：你之前的 JS 已经包含字体自适应逻辑，大数字输入时会自动缩小字体，不会溢出
+        let activeInput = null;
+        const currencies = ['USD', 'THB', 'KHR', 'CNY'];
+        let rawChange = {};
+        let activeFunc = null;
+        const SEPARATOR = '#';
+        const itemPrice = document.getElementById('itemPrice');
+        const priceLabel = document.getElementById('priceLabel');
+        const baseCurrency = document.getElementById('baseCurrency');
+        const cutAmountBtn = document.getElementById('cutAmount');
+        const roundingRuleBtn = document.getElementById('roundingRule');
+        const providedInputs = {
+            USD: document.getElementById('providedUSD'),
+            THB: document.getElementById('providedTHB'),
+            KHR: document.getElementById('providedKHR'),
+            CNY: document.getElementById('providedCNY')
+        };
+        const changeElements = {
+            USD: document.getElementById('changeUSD'),
+            THB: document.getElementById('changeTHB'),
+            KHR: document.getElementById('changeKHR'),
+            CNY: document.getElementById('changeCNY')
+        };
+        const changeLabel = document.getElementById('changeLabel');
+
+        function removeThousandSeparator(inputEl) {
+            if (!inputEl.value) return;
+            const cleanValue = inputEl.value.replace(/,/g, '').trim();
+            if (cleanValue && isNaN(parseFloat(cleanValue))) {
+                inputEl.value = '';
+            } else {
+                inputEl.value = cleanValue;
+            }
+            inputEl.style.fontSize = '18px';
+            activeInput = inputEl;
+        }
+
+        function addThousandSeparatorAndAdjustFont(inputEl) {
+            if (!inputEl.value) {
+                inputEl.value = '';
+                inputEl.style.fontSize = '18px';
+                calculateAll();
+                return;
+            }
+            const cleanValue = inputEl.value.replace(/,/g, '').trim();
+            if (!cleanValue || cleanValue === '0') {
+                inputEl.value = '';
+                inputEl.style.fontSize = '18px';
+                calculateAll();
+                return;
+            }
+            const num = parseFloat(cleanValue);
+            if (isNaN(num) || num < 0) {
+                inputEl.value = '';
+                inputEl.style.fontSize = '18px';
+                calculateAll();
+                return;
+            }
+            const parts = cleanValue.split('.');
+            const integerPart = parts[0].replace(/\B(?=(\d{4})+(?!\d))/g, ',');
+            const decimalPart = parts[1] ? '.' + parts[1].slice(0, 4) : '';
+            const formattedValue = integerPart + decimalPart;
+            inputEl.value = formattedValue;
+            adjustFontSizeToFit(inputEl);
+            calculateAll();
+        }
+
+        function adjustFontSizeToFit(inputEl) {
+            inputEl.style.fontSize = '18px';
+            const maxFont = 18;
+            const minFont = 12;
+            let currentFont = maxFont;
+            while (inputEl.scrollWidth > inputEl.clientWidth && currentFont > minFont) {
+                currentFont -= 1;
+                inputEl.style.fontSize = `${currentFont}px`;
+            }
+        }
+
+        function getProvidedValue(curr) {
+            const inputEl = providedInputs[curr];
+            const cleanValue = inputEl.value.replace(/,/g, '').trim();
+            return cleanValue && !isNaN(parseFloat(cleanValue)) ? parseFloat(cleanValue) : 0;
+        }
+
+        function updateActiveCurrency() {
+            const selectedCurrency = baseCurrency.value;
+            currencies.forEach(curr => {
+                document.getElementById(`currency-${curr}`).classList.remove('currency-active');
+            });
+            document.getElementById(`currency-${selectedCurrency}`).classList.add('currency-active');
+            calculateAll();
+        }
+
+        let justBackFromBlur = true;
+        let isClickingKeyboard = false;
+
+        function setCursorToEnd(el) {
+            el.focus();
+            const range = document.createRange();
+            const sel = window.getSelection();
+            range.selectNodeContents(el);
+            range.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+
+        const keyboardButtons = document.querySelectorAll('.table-btn, .number-btn');
+        keyboardButtons.forEach(btn => {
+            btn.addEventListener('mousedown', () => { isClickingKeyboard = true; });
+            btn.addEventListener('mouseup', () => {
+                setTimeout(() => { isClickingKeyboard = false; }, 10);
+            });
+        });
+
+        itemPrice.addEventListener('blur', (e) => {
+            if (!isClickingKeyboard) {
+                justBackFromBlur = true;
+                const originalText = itemPrice.textContent;
+                const newText = addBracketsToText(originalText);
+                if (newText !== originalText) {
+                    itemPrice.textContent = newText;
+                }
+            }
+        });
+
+        itemPrice.addEventListener('focus', () => {
+            activeInput = itemPrice;
+            if (justBackFromBlur) {
+                setTimeout(() => setCursorToEnd(itemPrice), 0);
+                justBackFromBlur = false;
+            }
+        });
+
+        itemPrice.addEventListener('click', () => { justBackFromBlur = false; });
+        itemPrice.addEventListener('input', () => { justBackFromBlur = false; });
+
+        function addBracketsToText(text) {
+            const regex = /(?<=^|[+\-#])(\d+\.?\d*)([*\/])(\d+\.?\d*)(?=[+\-#]|$)/g;
+            return text.replace(regex, '($1$2$3)');
+        }
+
+        function getPurePrices() {
+            const text = itemPrice.textContent.replace(/\(|\)/g, '') || '';
+            return text.trim().split(SEPARATOR).map(p => p.trim()).filter(p => p !== '' && !isNaN(eval(p)));
+        }
+
+        function parseMultiPrices() {
+            const prices = getPurePrices();
+            return prices.reduce((sum, p) => {
+                try { return sum + eval(p); }
+                catch (e) { return sum + 0; }
+            }, 0);
+        }
+
+        function updatePriceLabel() {
+            const prices = getPurePrices();
+            if (prices.length > 0) {
+                priceLabel.innerHTML = `<div>添加商品</div><div class="text-sm text-blue-500">(共${prices.length}件)</div>`;
+                priceLabel.classList.add('add-btn');
+            } else {
+                priceLabel.innerHTML = `<div>商品价格</div><div class="text-sm text-transparent">(共0件)</div>`;
+                priceLabel.classList.remove('add-btn');
+            }
+        }
+
+        priceLabel.addEventListener('click', () => {
+            const prices = getPurePrices();
+            if (prices.length === 0) return;
+            itemPrice.focus();
+            const range = document.createRange();
+            const sel = window.getSelection();
+            range.selectNodeContents(itemPrice);
+            range.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            document.execCommand('insertText', false, SEPARATOR);
+            updatePriceLabel();
+            calculateAll();
+        });
+
+        function fourSixRound(value) {
+            const integer = Math.floor(value);
+            const frac = value - integer;
+            if (frac < 0.5) return integer;
+            if (frac > 0.5) return integer + 1;
+            return integer % 2 === 0 ? integer : integer + 1;
+        }
+
+        function getProcessedValue(n) {
+            if (isNaN(n)) return NaN;
+            let v = n;
+            if (activeFunc === 'cut') v = Math.floor(v);
+            else if (activeFunc === 'round') v = fourSixRound(v);
+            return v;
+        }
+
+        function formatNum(num) {
+            let val = num;
+            if (activeFunc === 'cut') val = Math.floor(val);
+            else if (activeFunc === 'round') val = fourSixRound(val);
+            let numStr = val.toString();
+            if (numStr.includes('.')) {
+                const [intPart, decPart] = numStr.split('.');
+                const formattedInt = intPart.replace(/\B(?=(\d{4})+(?!\d))/g, ",");
+                numStr = `${formattedInt}.${decPart.slice(0, 4)}`.replace(/\.?0*$/, '');
+            } else {
+                numStr = numStr.replace(/\B(?=(\d{4})+(?!\d))/g, ",");
+            }
+            return numStr;
+        }
+
+        function calculateAll() {
+            const price = parseMultiPrices();
+            const baseCurr = baseCurrency.value;
+            const rates = {
+                USD: parseFloat(document.getElementById('rateUSD').textContent) || 0,
+                THB: parseFloat(document.getElementById('rateTHB').textContent) || 0,
+                KHR: parseFloat(document.getElementById('rateKHR').textContent) || 0,
+                CNY: parseFloat(document.getElementById('rateCNY').textContent) || 0
+            };
+            const dueBase = price;
+            const provided = {};
+            let totalProvidedInBase = 0;
+            currencies.forEach(curr => {
+                provided[curr] = getProvidedValue(curr);
+                totalProvidedInBase += provided[curr] / (rates[curr] / rates[baseCurr]);
+            });
+            const totalDiffInBase = totalProvidedInBase - dueBase;
+            let zeroCount = 0;
+            let allZero = true;
+            currencies.forEach(curr => {
+                rawChange[curr] = totalDiffInBase * rates[curr] / rates[baseCurr];
+                const x = getProcessedValue(Math.abs(rawChange[curr]));
+                if (!isNaN(x) && x === 0) zeroCount++;
+                else allZero = false;
+            });
+            let labelText = '金额结清';
+            let labelClass = 'text-green-600';
+            if (isNaN(totalDiffInBase)) {
+                labelText = '我方应补';
+                labelClass = 'text-red-600';
+            } else if (allZero) {
+                labelText = '金额结清';
+                labelClass = 'text-green-600';
+            } else if (zeroCount >= 2) {
+                labelText = '去尾结清';
+                labelClass = 'clearance-highlight';
+            } else if (totalDiffInBase < -0.0001) {
+                labelText = '我方应补';
+                labelClass = 'text-red-600';
+            } else if (totalDiffInBase > 0.0001) {
+                labelText = '对方应找零';
+                labelClass = 'text-purple-700';
+            }
+            changeLabel.textContent = labelText;
+            changeLabel.className = `border-gray-300 font-bold y-padding-cell ${labelClass}`;
+            currencies.forEach(curr => {
+                const el = changeElements[curr];
+                const formattedNum = formatNum(Math.abs(rawChange[curr]));
+                el.textContent = formattedNum;
+                el.className = `border-gray-300 y-padding-cell text-center ${labelClass}`;
+            });
+            updatePriceLabel();
+        }
+
+        function makeEditable(element, type, currency) {
+            const currentValue = element.textContent;
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.value = currentValue;
+            input.className = 'w-full h-full border-none outline-none text-lg text-center';
+            input.step = '0.0001';
+            input.min = '0';
+            element.dataset.originalContent = currentValue;
+            element.innerHTML = '';
+            element.appendChild(input);
+            input.focus();
+            input.onblur = () => {
+                const numValue = parseFloat(input.value);
+                if (!isNaN(numValue) && numValue >= 0) element.textContent = numValue;
+                else element.textContent = element.dataset.originalContent;
+                delete element.dataset.originalContent;
+                calculateAll();
+            };
+        }
+
+        function resetFuncBtnStatus() {
+            activeFunc = null;
+            cutAmountBtn.classList.remove('active');
+            roundingRuleBtn.classList.remove('active');
+        }
+
+        cutAmountBtn.addEventListener('click', () => {
+            if (activeFunc === 'cut') resetFuncBtnStatus();
+            else {
+                activeFunc = 'cut';
+                cutAmountBtn.classList.add('active');
+                roundingRuleBtn.classList.remove('active');
+            }
+            calculateAll();
+        });
+
+        roundingRuleBtn.addEventListener('click', () => {
+            if (activeFunc === 'round') resetFuncBtnStatus();
+            else {
+                activeFunc = 'round';
+                roundingRuleBtn.classList.add('active');
+                cutAmountBtn.classList.remove('active');
+            }
+            calculateAll();
+        });
+
+        itemPrice.addEventListener('input', () => {
+            updatePriceLabel();
+            calculateAll();
+        });
+
+        Object.values(providedInputs).forEach(input => {
+            input.onfocus = () => {
+                activeInput = input;
+                removeThousandSeparator(input);
+            };
+            input.addEventListener('input', () => {
+                calculateAll();
+            });
+        });
+
+        baseCurrency.addEventListener('change', calculateAll);
+
+        document.querySelectorAll('.number-btn[data-number]').forEach(btn => {
+            btn.onclick = () => {
+                if (!activeInput) return;
+                const num = btn.dataset.number;
+                if (activeInput !== itemPrice) {
+                    removeThousandSeparator(activeInput);
+                    activeInput.value += num;
+                } else {
+                    document.execCommand('insertText', false, num);
+                }
+                calculateAll();
+            };
+        });
+
+        document.getElementById('decimalPoint').addEventListener('click', () => {
+            if (!activeInput) return;
+            if (activeInput !== itemPrice) {
+                removeThousandSeparator(activeInput);
+                if (!activeInput.value.includes('.')) activeInput.value += '.';
+            } else {
+                document.execCommand('insertText', false, '.');
+            }
+            calculateAll();
+        });
+
+        document.getElementById('deleteNumber').addEventListener('click', () => {
+            if (!activeInput) return;
+            if (activeInput !== itemPrice) {
+                removeThousandSeparator(activeInput);
+                activeInput.value = activeInput.value.slice(0, -1);
+            } else {
+                document.execCommand('delete', false);
+            }
+            calculateAll();
+        });
+
+        document.getElementById('clearAll').addEventListener('click', () => {
+            itemPrice.textContent = '';
+            Object.values(providedInputs).forEach(i => {
+                i.value = '';
+                i.style.fontSize = '18px';
+            });
+            document.getElementById('rateUSD').textContent = '1';
+            document.getElementById('rateTHB').textContent = '30';
+            document.getElementById('rateKHR').textContent = '4000';
+            document.getElementById('rateCNY').textContent = '6.95';
+            resetFuncBtnStatus();
+            calculateAll();
+        });
+
+        function insertChar(ch) {
+            if (!activeInput || activeInput !== itemPrice) return;
+            document.execCommand('insertText', false, ch);
+            calculateAll();
+        }
+
+        document.getElementById('addHash').onclick = () => insertChar(SEPARATOR);
+        document.getElementById('addDiv').onclick = () => insertChar('/');
+        document.getElementById('addMul').onclick = () => insertChar('*');
+        document.getElementById('addSub').onclick = () => insertChar('-');
+        document.getElementById('addAdd').onclick = () => insertChar('+');
+
+        updateActiveCurrency();
+        calculateAll();
     </script>
 </body>
 </html>
