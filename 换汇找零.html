@@ -1,0 +1,310 @@
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快捷货币换算找零工具</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .border-grid { @apply border border-gray-300; }
+            .cell-padding { @apply px-4 py-3; }
+            .input-cell { @apply w-full h-full border-none outline-none text-right text-lg; }
+            .table-btn { @apply w-full h-full px-3 py-2 text-lg rounded hover:bg-gray-100 transition-all bg-white; }
+            .number-btn { @apply w-full h-full flex items-center justify-center text-xl font-bold hover:bg-gray-100 transition-all; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+    <div class="max-w-xl mx-auto bg-white rounded-lg shadow-lg p-4">
+        <h1 class="text-2xl font-bold text-center mb-4 text-gray-800">快捷货币换算找零工具</h1>
+
+        <!-- 核心表格 -->
+        <table class="w-full border-collapse">
+            <tbody>
+                <!-- 1. 计价货币（默认美金） -->
+                <tr>
+                    <td class="border border-gray-300 px-4 py-3 font-bold w-1/4">计价货币</td>
+                    <td class="border border-gray-300 px-4 py-3" colspan="4">
+                        <select id="baseCurrency" class="w-full border-none outline-none text-lg">
+                            <option value="USD" selected>美金 (USD)</option>
+                            <option value="THB">泰铢 (THB)</option>
+                            <option value="KHR">柬币 (KHR)</option>
+                            <option value="CNY">华币 (CNY)</option>
+                        </select>
+                    </td>
+                </tr>
+
+                <!-- 2. 商品价格（默认空） -->
+                <tr>
+                    <td class="border border-gray-300 px-4 py-3 font-bold w-1/4">商品价格</td>
+                    <td class="border border-gray-300 px-4 py-3" colspan="4">
+                        <input type="number" id="itemPrice" class="input-cell" value="" min="0" step="0.01" placeholder="输入商品价格">
+                    </td>
+                </tr>
+
+                <!-- 3. 币种 -->
+                <tr>
+                    <td class="border border-gray-300 px-4 py-3 font-bold w-1/4">币种</td>
+                    <td class="border border-gray-300 px-4 py-3 text-center font-bold">美金</td>
+                    <td class="border border-gray-300 px-4 py-3 text-center font-bold">泰铢</td>
+                    <td class="border border-gray-300 px-4 py-3 text-center font-bold">柬币</td>
+                    <td class="border border-gray-300 px-4 py-3 text-center font-bold">华币</td>
+                </tr>
+
+                <!-- 4. 汇率 -->
+                <tr>
+                    <td class="border border-gray-300 px-4 py-3 font-bold w-1/4">汇率</td>
+                    <td class="border border-gray-300 px-4 py-3 text-right" ondblclick="makeEditable(this, 'rate', 'USD')" id="rateUSD">1</td>
+                    <td class="border border-gray-300 px-4 py-3 text-right" ondblclick="makeEditable(this, 'rate', 'THB')" id="rateTHB">30</td>
+                    <td class="border border-gray-300 px-4 py-3 text-right" ondblclick="makeEditable(this, 'rate', 'KHR')" id="rateKHR">4000</td>
+                    <td class="border border-gray-300 px-4 py-3 text-right" ondblclick="makeEditable(this, 'rate', 'CNY')" id="rateCNY">6.95</td>
+                </tr>
+
+                <!-- 5. 我方应补足 / 对方应找零 -->
+                <tr>
+                    <td id="changeLabel" class="border border-gray-300 px-4 py-3 font-bold w-1/4">我方应补</td>
+                    <td class="border border-gray-300 px-4 py-3 text-right" id="changeUSD">0</td>
+                    <td class="border border-gray-300 px-4 py-3 text-right" id="changeTHB">0</td>
+                    <td class="border border-gray-300 px-4 py-3 text-right" id="changeKHR">0</td>
+                    <td class="border border-gray-300 px-4 py-3 text-right" id="changeCNY">0</td>
+                </tr>
+
+                <!-- 6. 实付（默认空，去掉0） -->
+                <tr>
+                    <td class="border border-gray-300 px-4 py-3 font-bold w-1/4">实付</td>
+                    <td class="border border-gray-300 px-4 py-3">
+                        <input type="number" id="providedUSD" class="input-cell" value="" min="0" step="0.01" placeholder="0">
+                    </td>
+                    <td class="border border-gray-300 px-4 py-3">
+                        <input type="number" id="providedTHB" class="input-cell" value="" min="0" step="0.01" placeholder="0">
+                    </td>
+                    <td class="border border-gray-300 px-4 py-3">
+                        <input type="number" id="providedKHR" class="input-cell" value="" min="0" step="0.01" placeholder="0">
+                    </td>
+                    <td class="border border-gray-300 px-4 py-3">
+                        <input type="number" id="providedCNY" class="input-cell" value="" min="0" step="0.01" placeholder="0">
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- 数字键盘 + 功能按钮（取消内边框） -->
+        <div class="mt-4">
+            <table class="w-full border-collapse">
+                <tbody>
+                    <tr>
+                        <td class="border border-gray-300 px-2 py-2 w-1/4"><button id="cutAmount" class="table-btn">尾数截断</button></td>
+                        <td class="border border-gray-300 px-2 py-2"><button class="number-btn" data-number="1">1</button></td>
+                        <td class="border border-gray-300 px-2 py-2"><button class="number-btn" data-number="2">2</button></td>
+                        <td class="border border-gray-300 px-2 py-2"><button class="number-btn" data-number="3">3</button></td>
+                        <td class="border border-gray-300 px-2 py-2 w-1/4"><button id="deleteNumber" class="table-btn">删除</button></td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-300 px-2 py-2 w-1/4"><button id="roundingRule" class="table-btn">四舍六入</button></td>
+                        <td class="border border-gray-300 px-2 py-2"><button class="number-btn" data-number="4">4</button></td>
+                        <td class="border border-gray-300 px-2 py-2"><button class="number-btn" data-number="5">5</button></td>
+                        <td class="border border-gray-300 px-2 py-2"><button class="number-btn" data-number="6">6</button></td>
+                        <td class="border border-gray-300 px-2 py-2 w-1/4"><button id="clearAll" class="table-btn">清除</button></td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-300 px-2 py-2 w-1/4"><button id="decimalPoint" class="table-btn">.</button></td>
+                        <td class="border border-gray-300 px-2 py-2"><button class="number-btn" data-number="7">7</button></td>
+                        <td class="border border-gray-300 px-2 py-2"><button class="number-btn" data-number="8">8</button></td>
+                        <td class="border border-gray-300 px-2 py-2"><button class="number-btn" data-number="9">9</button></td>
+                        <td class="border border-gray-300 px-2 py-2 w-1/4"><button class="number-btn" data-number="0">0</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let activeInput = null;
+        const currencies = ['USD', 'THB', 'KHR', 'CNY'];
+        let rawChange = {}; // 存储原始差额数据
+        let isTruncated = false; // 尾数截断状态
+        let isRounded = false; // 四舍六入状态
+
+        // 双击编辑汇率
+        function makeEditable(element, type, currency) {
+            const currentValue = element.textContent;
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.value = currentValue;
+            input.className = 'w-full h-full border-none outline-none text-right text-lg';
+            input.step = '0.0001';
+            input.min = '0';
+            element.dataset.originalContent = currentValue;
+            element.innerHTML = '';
+            element.appendChild(input);
+            input.focus();
+            input.onblur = () => saveEdit(element, type, currency, input.value);
+            input.onkeypress = (e) => e.key === 'Enter' && saveEdit(element, type, currency, input.value);
+            input.onkeydown = (e) => e.key === 'Escape' && cancelEdit(element);
+        }
+        function saveEdit(element, type, currency, value) {
+            const numValue = parseFloat(value);
+            if (!isNaN(numValue) && numValue >= 0) {
+                element.textContent = numValue;
+                calculateAll();
+            } else cancelEdit(element);
+        }
+        function cancelEdit(element) {
+            element.textContent = element.dataset.originalContent || '';
+            delete element.dataset.originalContent;
+        }
+
+        // DOM 元素
+        const itemPrice = document.getElementById('itemPrice');
+        const baseCurrency = document.getElementById('baseCurrency');
+        const providedInputs = {
+            USD: document.getElementById('providedUSD'),
+            THB: document.getElementById('providedTHB'),
+            KHR: document.getElementById('providedKHR'),
+            CNY: document.getElementById('providedCNY')
+        };
+        const changeElements = { USD: document.getElementById('changeUSD'), THB: document.getElementById('changeTHB'), KHR: document.getElementById('changeKHR'), CNY: document.getElementById('changeCNY') };
+        const changeLabel = document.getElementById('changeLabel');
+
+        // 四舍六入五成双
+        function fourSixRound(value) {
+            if (!isRounded) return value;
+            const integer = Math.floor(value);
+            const frac = value - integer;
+            if (frac < 0.5) return integer;
+            if (frac > 0.5) return integer + 1;
+            return integer % 2 === 0 ? integer : integer + 1;
+        }
+
+        // 格式化显示
+        function formatNum(num) {
+            let val = num;
+            if (isTruncated) val = Math.floor(val); // 尾数截断
+            val = fourSixRound(val); // 四舍六入
+            if (Number.isInteger(val)) return val.toString();
+            return val.toFixed(4).replace(/\.?0*$/, '');
+        }
+
+        // 核心计算逻辑（兼容空值）
+        function calculateAll() {
+            const price = parseFloat(itemPrice.value) || 0;
+            const baseCurr = baseCurrency.value;
+
+            const rates = {
+                USD: parseFloat(document.getElementById('rateUSD').textContent) || 0,
+                THB: parseFloat(document.getElementById('rateTHB').textContent) || 0,
+                KHR: parseFloat(document.getElementById('rateKHR').textContent) || 0,
+                CNY: parseFloat(document.getElementById('rateCNY').textContent) || 0
+            };
+
+            // 计算应付（仅计价货币应付）
+            const dueBase = price;
+
+            // 实付总额（换算成计价货币，兼容空值）
+            const provided = {};
+            let totalProvidedInBase = 0;
+            currencies.forEach(curr => {
+                provided[curr] = parseFloat(providedInputs[curr].value) || 0;
+                totalProvidedInBase += provided[curr] / (rates[curr] / rates[baseCurr]);
+            });
+
+            // 差额
+            const totalDiffInBase = totalProvidedInBase - dueBase;
+
+            // 动态标签
+            if (totalDiffInBase < -0.0001) {
+                changeLabel.textContent = '我方应补';
+            } else if (totalDiffInBase > 0.0001) {
+                changeLabel.textContent = '对方应找零';
+            } else {
+                changeLabel.textContent = '金额结清';
+            }
+
+            // 换算成各币种差额（存储原始值）
+            currencies.forEach(curr => {
+                rawChange[curr] = totalDiffInBase * rates[curr] / rates[baseCurr];
+            });
+
+            // 更新显示
+            updateChangeDisplay();
+        }
+
+        // 更新差额显示
+        function updateChangeDisplay() {
+            currencies.forEach(curr => {
+                changeElements[curr].textContent = formatNum(Math.abs(rawChange[curr]));
+            });
+        }
+
+        // 事件绑定
+        baseCurrency.addEventListener('change', calculateAll);
+        itemPrice.addEventListener('input', calculateAll);
+        Object.values(providedInputs).forEach(input => {
+            input.addEventListener('input', calculateAll);
+        });
+
+        // 尾数截断按钮
+        document.getElementById('cutAmount').addEventListener('click', () => {
+            isTruncated = !isTruncated;
+            updateChangeDisplay();
+        });
+
+        // 四舍六入按钮
+        document.getElementById('roundingRule').addEventListener('click', () => {
+            isRounded = !isRounded;
+            updateChangeDisplay();
+        });
+
+        // 删除按钮
+        document.getElementById('deleteNumber').addEventListener('click', () => {
+            if (!activeInput) return;
+            activeInput.value = activeInput.value.slice(0, -1);
+            calculateAll();
+        });
+
+        // 清除按钮（重置为空）
+        document.getElementById('clearAll').addEventListener('click', () => {
+            itemPrice.value = '';
+            Object.values(providedInputs).forEach(i => i.value = '');
+            document.getElementById('rateUSD').textContent = '1';
+            document.getElementById('rateTHB').textContent = '30';
+            document.getElementById('rateKHR').textContent = '4000';
+            document.getElementById('rateCNY').textContent = '6.95';
+            isTruncated = false;
+            isRounded = false;
+            calculateAll();
+        });
+
+        // 小数点按钮
+        document.getElementById('decimalPoint').addEventListener('click', () => {
+            if (!activeInput) return;
+            if (!activeInput.value.includes('.')) activeInput.value += '.';
+            calculateAll();
+        });
+
+        // 聚焦逻辑（取消焦点框）
+        function highlightActiveInput() {
+            // 移除焦点框样式，仅保留逻辑标记
+            activeInput = activeInput;
+        }
+        itemPrice.onfocus = () => { activeInput = itemPrice; highlightActiveInput(); };
+        Object.values(providedInputs).forEach(input => {
+            input.onfocus = () => { activeInput = input; highlightActiveInput(); };
+        });
+
+        // 数字键盘输入（兼容空值）
+        document.querySelectorAll('.number-btn[data-number]').forEach(btn => {
+            btn.onclick = () => {
+                if (!activeInput) return;
+                const curr = activeInput.value || ''; // 空值直接拼接
+                activeInput.value = curr + btn.dataset.number;
+                calculateAll();
+            };
+        });
+
+        // 初始化
+        calculateAll();
+    </script>
+</body>
+</html>
