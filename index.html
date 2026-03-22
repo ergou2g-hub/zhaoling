@@ -14,6 +14,7 @@
                 height: 56px !important;
                 vertical-align: middle !important;
                 text-align: center !important;
+                position: relative; /* 新增：用于高亮边框定位 */
             }
             .rich-input {
                 @apply w-full h-full border-none outline-none text-lg text-center;
@@ -25,6 +26,8 @@
                 @apply w-full h-full border-none outline-none text-center;
                 transition: font-size 0.1s ease;
                 font-size: 18px;
+                width: 100%;
+                height: 100%;
             }
             .input-cell::-webkit-outer-spin-button,
             .input-cell::-webkit-inner-spin-button {
@@ -57,13 +60,15 @@
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
-            .paid-input {
-                border: 2px solid transparent !important;
-                transition: border-color 0.2s ease, background-color 0.2s ease;
-            }
-            .paid-input.active {
-                border-color: #3b82f6 !important;
+            /* 新增：高亮样式 - 外边框铺满单元格 */
+            .cell-highlight {
                 background-color: #f0f9ff !important;
+                border: 2px solid #3b82f6 !important;
+                z-index: 1;
+            }
+            /* 商品价格单元格容器 */
+            #priceCell {
+                position: relative;
             }
         }
         * { touch-action: manipulation; }
@@ -93,8 +98,9 @@
                         <div>商品价格</div>
                         <div class="text-sm text-transparent">(共0件)</div>
                     </td>
-                    <td class="border-gray-300 y-padding-cell" colspan="4">
-                        <div id="itemPrice" class="rich-input" contenteditable="true" placeholder="输入商品价格（用#分隔多个价格）"></div>
+                    <!-- 新增：给商品价格单元格加id，用于高亮 -->
+                    <td id="priceCell" class="border-gray-300 y-padding-cell" colspan="4">
+                        <div id="itemPrice" class="rich-input" contenteditable="false" placeholder="输入商品价格（用#分隔多个价格）"></div>
                     </td>
                 </tr>
                 <tr>
@@ -120,10 +126,11 @@
                 </tr>
                 <tr>
                     <td class="border-gray-300 font-bold y-padding-cell">实付</td>
-                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedUSD" class="input-cell paid-input w-full text-center" value="" placeholder="0" readonly></td>
-                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedTHB" class="input-cell paid-input w-full text-center" value="" placeholder="0" readonly></td>
-                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedKHR" class="input-cell paid-input w-full text-center" value="" placeholder="0" readonly></td>
-                    <td class="border-gray-300 y-padding-cell"><input type="text" id="providedCNY" class="input-cell paid-input w-full text-center" value="" placeholder="0" readonly></td>
+                    <!-- 给实付单元格加id，用于高亮 -->
+                    <td id="paidUSDCell" class="border-gray-300 y-padding-cell"><input type="text" id="providedUSD" class="input-cell w-full text-center" value="" placeholder="0" readonly></td>
+                    <td id="paidTHBCell" class="border-gray-300 y-padding-cell"><input type="text" id="providedTHB" class="input-cell w-full text-center" value="" placeholder="0" readonly></td>
+                    <td id="paidKHRCell" class="border-gray-300 y-padding-cell"><input type="text" id="providedKHR" class="input-cell w-full text-center" value="" placeholder="0" readonly></td>
+                    <td id="paidCNYCell" class="border-gray-300 y-padding-cell"><input type="text" id="providedCNY" class="input-cell w-full text-center" value="" placeholder="0" readonly></td>
                 </tr>
             </tbody>
         </table>
@@ -186,6 +193,15 @@
             CNY: document.getElementById('changeCNY')
         };
         const changeLabel = document.getElementById('changeLabel');
+        // 新增：实付单元格DOM
+        const paidCells = {
+            USD: document.getElementById('paidUSDCell'),
+            THB: document.getElementById('paidTHBCell'),
+            KHR: document.getElementById('paidKHRCell'),
+            CNY: document.getElementById('paidCNYCell')
+        };
+        // 新增：商品价格单元格
+        const priceCell = document.getElementById('priceCell');
 
         function removeThousandSeparator(inputEl) {
             if (!inputEl.value) return;
@@ -258,11 +274,11 @@
         let justBackFromBlur = true;
         let isClickingKeyboard = false;
 
-        function setCursorToEnd(el) {
-            el.focus();
+        // 新增：设置商品价格框光标（模拟光标，不触发输入法）
+        function setPriceCursor() {
             const range = document.createRange();
             const sel = window.getSelection();
-            range.selectNodeContents(el);
+            range.selectNodeContents(itemPrice);
             range.collapse(false);
             sel.removeAllRanges();
             sel.addRange(range);
@@ -276,6 +292,7 @@
             });
         });
 
+        // 商品价格框事件（彻底禁用输入法）
         itemPrice.addEventListener('blur', (e) => {
             if (!isClickingKeyboard) {
                 justBackFromBlur = true;
@@ -287,18 +304,20 @@
             }
         });
 
-        // 阻止商品价格框弹系统键盘
-        itemPrice.addEventListener('focus', (e) => {
-            e.preventDefault();
+        // 商品价格单元格点击事件
+        priceCell.addEventListener('click', () => {
+            // 移除所有高亮
+            Object.values(paidCells).forEach(cell => cell.classList.remove('cell-highlight'));
+            priceCell.classList.add('cell-highlight');
             activeInput = itemPrice;
-            if (justBackFromBlur) {
-                setTimeout(() => setCursorToEnd(itemPrice), 0);
-                justBackFromBlur = false;
-            }
+            setPriceCursor(); // 模拟光标，不触发输入法
+            justBackFromBlur = false;
         });
 
-        itemPrice.addEventListener('click', () => { justBackFromBlur = false; });
-        itemPrice.addEventListener('input', () => { justBackFromBlur = false; });
+        itemPrice.addEventListener('click', () => { 
+            justBackFromBlur = false; 
+            setPriceCursor();
+        });
 
         function addBracketsToText(text) {
             const regex = /(?<=^|[+\-#])(\d+\.?\d*)([*\/])(\d+\.?\d*)(?=[+\-#]|$)/g;
@@ -332,13 +351,10 @@
         priceLabel.addEventListener('click', () => {
             const prices = getPurePrices();
             if (prices.length === 0) return;
-            itemPrice.focus();
-            const range = document.createRange();
-            const sel = window.getSelection();
-            range.selectNodeContents(itemPrice);
-            range.collapse(false);
-            sel.removeAllRanges();
-            sel.addRange(range);
+            priceCell.classList.add('cell-highlight');
+            Object.values(paidCells).forEach(cell => cell.classList.remove('cell-highlight'));
+            activeInput = itemPrice;
+            setPriceCursor();
             document.execCommand('insertText', false, SEPARATOR);
             updatePriceLabel();
             calculateAll();
@@ -481,16 +497,22 @@
             calculateAll();
         });
 
-        // 实付输入框高亮逻辑
-        Object.values(providedInputs).forEach(input => {
-            input.addEventListener('click', () => {
-                Object.values(providedInputs).forEach(i => i.classList.remove('active'));
-                input.classList.add('active');
+        // 实付单元格点击高亮逻辑（外边框铺满单元格）
+        Object.keys(providedInputs).forEach(curr => {
+            const input = providedInputs[curr];
+            const cell = paidCells[curr];
+            
+            cell.addEventListener('click', () => {
+                // 移除所有高亮
+                priceCell.classList.remove('cell-highlight');
+                Object.values(paidCells).forEach(c => c.classList.remove('cell-highlight'));
+                // 高亮当前单元格
+                cell.classList.add('cell-highlight');
                 activeInput = input;
                 removeThousandSeparator(input);
             });
+
             input.addEventListener('blur', () => {
-                input.classList.remove('active');
                 addThousandSeparatorAndAdjustFont(input);
             });
         });
@@ -539,6 +561,9 @@
                 i.value = '';
                 i.style.fontSize = '18px';
             });
+            // 清除所有高亮
+            priceCell.classList.remove('cell-highlight');
+            Object.values(paidCells).forEach(cell => cell.classList.remove('cell-highlight'));
             document.getElementById('rateUSD').textContent = '1';
             document.getElementById('rateTHB').textContent = '30';
             document.getElementById('rateKHR').textContent = '4000';
