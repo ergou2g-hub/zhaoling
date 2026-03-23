@@ -16,11 +16,8 @@
                 text-align: center !important;
                 position: relative;
             }
-            .rich-input {
+            .fake-input {
                 @apply w-full h-full border-none outline-none text-lg text-center;
-                padding: 8px 2px;
-                min-height: 40px;
-                line-height: 1.5;
                 user-select: none;
                 -webkit-user-select: none;
             }
@@ -97,7 +94,8 @@
                         <div class="text-sm text-transparent">(共0件)</div>
                     </td>
                     <td id="priceCell" class="border-gray-300 y-padding-cell" colspan="4">
-                        <div id="itemPrice" class="rich-input" contenteditable="true" placeholder="输入商品价格（用#分隔多个价格）"></div>
+                        <!-- 改成假显示区，不再可编辑，永不弹键盘 -->
+                        <div id="itemView" class="fake-input"></div>
                     </td>
                 </tr>
                 <tr>
@@ -171,7 +169,11 @@
         let rawChange = {};
         let activeFunc = null;
         const SEPARATOR = '#';
-        const itemPrice = document.getElementById('itemPrice');
+
+        // 商品价格改成纯字符串，不依赖光标、不依赖可编辑
+        let priceBuffer = "";
+        const itemView = document.getElementById("itemView");
+
         const priceLabel = document.getElementById('priceLabel');
         const baseCurrency = document.getElementById('baseCurrency');
         const cutAmountBtn = document.getElementById('cutAmount');
@@ -196,6 +198,13 @@
             CNY: document.getElementById('paidCNYCell')
         };
         const priceCell = document.getElementById('priceCell');
+
+        function refreshPriceView(){
+            let wrapped = addBracketsToText(priceBuffer);
+            itemView.innerText = wrapped;
+            updatePriceLabel();
+            calculateAll();
+        }
 
         function removeThousandSeparator(inputEl) {
             if (!inputEl.value) return;
@@ -265,7 +274,6 @@
             calculateAll();
         }
 
-        let justBackFromBlur = true;
         let isClickingKeyboard = false;
 
         const keyboardButtons = document.querySelectorAll('.table-btn, .number-btn');
@@ -276,29 +284,11 @@
             });
         });
 
-        // 关键：阻止弹出系统键盘，但保留网页键盘可输入
-        itemPrice.addEventListener('focus', e => {
-            e.preventDefault();
-            setTimeout(()=>{
-                setCursorToEnd(itemPrice);
-            },0);
-        });
-
-        function setCursorToEnd(el) {
-            const range = document.createRange();
-            const sel = window.getSelection();
-            range.selectNodeContents(el);
-            range.collapse(false);
-            sel.removeAllRanges();
-            sel.addRange(range);
-        }
-
-        // 商品价格单元格点击 → 高亮 + 选中
+        // 点商品价格格子 → 锁定选中、高亮、永不弹键盘
         priceCell.addEventListener('click', () => {
             clearAllCellHighlight();
             priceCell.classList.add('cell-highlight');
-            activeInput = itemPrice;
-            setCursorToEnd(itemPrice);
+            activeInput = "PRICE";
         });
 
         function clearAllCellHighlight(){
@@ -306,24 +296,13 @@
             Object.values(paidCells).forEach(c=>c.classList.remove('cell-highlight'));
         }
 
-        itemPrice.addEventListener('blur', (e) => {
-            if (!isClickingKeyboard) {
-                justBackFromBlur = true;
-                const originalText = itemPrice.textContent;
-                const newText = addBracketsToText(originalText);
-                if (newText !== originalText) {
-                    itemPrice.textContent = newText;
-                }
-            }
-        });
-
         function addBracketsToText(text) {
             const regex = /(?<=^|[+\-#])(\d+\.?\d*)([*\/])(\d+\.?\d*)(?=[+\-#]|$)/g;
             return text.replace(regex, '($1$2$3)');
         }
 
         function getPurePrices() {
-            const text = itemPrice.textContent.replace(/\(|\)/g, '') || '';
+            const text = priceBuffer.replace(/\(|\)/g, '') || '';
             return text.trim().split(SEPARATOR).map(p => p.trim()).filter(p => p !== '' && !isNaN(eval(p)));
         }
 
@@ -347,15 +326,11 @@
         }
 
         priceLabel.addEventListener('click', () => {
-            const prices = getPurePrices();
-            if (prices.length === 0) return;
             clearAllCellHighlight();
             priceCell.classList.add('cell-highlight');
-            activeInput = itemPrice;
-            setCursorToEnd(itemPrice);
-            document.execCommand('insertText', false, SEPARATOR);
-            updatePriceLabel();
-            calculateAll();
+            activeInput = "PRICE";
+            priceBuffer += SEPARATOR;
+            refreshPriceView();
         });
 
         function fourSixRound(value) {
@@ -395,7 +370,7 @@
             const rates = {
                 USD: parseFloat(document.getElementById('rateUSD').textContent) || 0,
                 THB: parseFloat(document.getElementById('rateTHB').textContent) || 0,
-                KHR: parseFloat(document.getElementById('ratedKHR').textContent) || 0,
+                KHR: parseFloat(document.getElementById('rateKHR').textContent) || 0,
                 CNY: parseFloat(document.getElementById('rateCNY').textContent) || 0
             };
             const dueBase = price;
@@ -440,7 +415,6 @@
                 el.textContent = formattedNum;
                 el.className = `border-gray-300 y-padding-cell text-center ${labelClass}`;
             });
-            updatePriceLabel();
         }
 
         function makeEditable(element, type, currency) {
@@ -490,12 +464,7 @@
             calculateAll();
         });
 
-        itemPrice.addEventListener('input', () => {
-            updatePriceLabel();
-            calculateAll();
-        });
-
-        // 实付格点击高亮
+        // 实付格子点击
         Object.keys(providedInputs).forEach(curr => {
             const input = providedInputs[curr];
             const cell = paidCells[curr];
@@ -512,44 +481,50 @@
 
         baseCurrency.addEventListener('change', calculateAll);
 
+        // 小键盘统一分发
         document.querySelectorAll('.number-btn[data-number]').forEach(btn => {
             btn.onclick = () => {
-                if (!activeInput) return;
                 const num = btn.dataset.number;
-                if (activeInput !== itemPrice) {
+                if (!activeInput) return;
+
+                if (activeInput === "PRICE") {
+                    priceBuffer += num;
+                    refreshPriceView();
+                } else {
                     removeThousandSeparator(activeInput);
                     activeInput.value += num;
-                } else {
-                    document.execCommand('insertText', false, num);
+                    calculateAll();
                 }
-                calculateAll();
             };
         });
 
         document.getElementById('decimalPoint').addEventListener('click', () => {
             if (!activeInput) return;
-            if (activeInput !== itemPrice) {
+            if (activeInput === "PRICE") {
+                priceBuffer += ".";
+                refreshPriceView();
+            } else {
                 removeThousandSeparator(activeInput);
                 if (!activeInput.value.includes('.')) activeInput.value += '.';
-            } else {
-                document.execCommand('insertText', false, '.');
+                calculateAll();
             }
-            calculateAll();
         });
 
         document.getElementById('deleteNumber').addEventListener('click', () => {
             if (!activeInput) return;
-            if (activeInput !== itemPrice) {
+            if (activeInput === "PRICE") {
+                priceBuffer = priceBuffer.slice(0, -1);
+                refreshPriceView();
+            } else {
                 removeThousandSeparator(activeInput);
                 activeInput.value = activeInput.value.slice(0, -1);
-            } else {
-                document.execCommand('delete', false);
+                calculateAll();
             }
-            calculateAll();
         });
 
         document.getElementById('clearAll').addEventListener('click', () => {
-            itemPrice.textContent = '';
+            priceBuffer = "";
+            refreshPriceView();
             Object.values(providedInputs).forEach(i => {
                 i.value = '';
                 i.style.fontSize = '18px';
@@ -564,9 +539,9 @@
         });
 
         function insertChar(ch) {
-            if (!activeInput || activeInput !== itemPrice) return;
-            document.execCommand('insertText', false, ch);
-            calculateAll();
+            if (!activeInput || activeInput !== "PRICE") return;
+            priceBuffer += ch;
+            refreshPriceView();
         }
 
         document.getElementById('addHash').onclick = () => insertChar(SEPARATOR);
@@ -575,6 +550,7 @@
         document.getElementById('addSub').onclick = () => insertChar('-');
         document.getElementById('addAdd').onclick = () => insertChar('+');
 
+        refreshPriceView();
         updateActiveCurrency();
         calculateAll();
     </script>
