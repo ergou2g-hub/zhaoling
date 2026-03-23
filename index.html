@@ -4,28 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>东南亚泰柬生活便捷换算工具</title>
+    <!-- 简单美化加载提示 -->
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: #333;
+        }
+    </style>
 </head>
 <body>
+    <p>正在为您适配设备，请稍候...</p>
+
     <script>
         // 检测是否为移动端设备
         function isMobile() {
             const userAgent = navigator.userAgent.toLowerCase();
-            // 匹配常见手机/平板设备标识
-            return /iphone|android|ipad|ipod|mobile|wap|wechat|micromessenger/.test(userAgent);
+            // 匹配常见手机/平板设备标识（覆盖更全面）
+            return /iphone|android|ipad|ipod|mobile|wap|wechat|micromessenger|huawei|mi|vivo|oppo|samsung/.test(userAgent);
         }
 
-        // 页面加载后自动跳转
-        window.onload = function() {
-            if (isMobile()) {
-                // 手机端：跳转到当前的 index.html（你原来的手机页面）
-                // 注意：先把原来的手机页面改名为 mobile.html，避免冲突！
-                window.location.href = 'mobile.html';
-            } else {
-                // 电脑端：跳转到 PC.html
-                window.location.href = 'PC.html';
+        // 页面加载后自动跳转（增加容错：DOM加载完成就执行）
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                if (isMobile()) {
+                    // 手机端跳转到 mobile.html
+                    window.location.href = 'mobile.html';
+                } else {
+                    // 电脑端跳转到 PC.html
+                    window.location.href = 'PC.html';
+                }
+            } catch (e) {
+                // 防止跳转失败，给出提示
+                alert('设备适配失败，请手动访问：\n电脑端：PC.html\n手机端：mobile.html');
             }
-        };
+        });
     </script>
-    <p>正在为您适配设备，请稍候...</p>
 </body>
 </html>
