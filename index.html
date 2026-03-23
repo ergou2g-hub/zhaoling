@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>东南亚泰柬生活便捷换算工具</title>
+</head>
+<body>
+    <script>
+        // 检测是否为移动端设备
+        function isMobile() {
+            const userAgent = navigator.userAgent.toLowerCase();
+            // 匹配常见手机/平板设备标识
+            return /iphone|android|ipad|ipod|mobile|wap|wechat|micromessenger/.test(userAgent);
+        }
+
+        // 页面加载后自动跳转
+        window.onload = function() {
+            if (isMobile()) {
+                // 手机端：跳转到当前的 index.html（你原来的手机页面）
+                // 注意：先把原来的手机页面改名为 mobile.html，避免冲突！
+                window.location.href = 'mobile.html';
+            } else {
+                // 电脑端：跳转到 PC.html
+                window.location.href = 'PC.html';
+            }
+        };
+    </script>
+    <p>正在为您适配设备，请稍候...</p>
+</body>
+</html>
